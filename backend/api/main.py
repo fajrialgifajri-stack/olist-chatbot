@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, field_validator
 import uuid
+import os
 import time
 import threading
 from collections import defaultdict
@@ -27,14 +28,18 @@ app = FastAPI(
     version="1.0.0",
 )
 
+frontend_url = os.getenv("FRONTEND_URL")
+    
 # CORS — restrict ke origin yang dikenal saja
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:8501", 
                    "http://127.0.0.1:8501",
-                   "http://frontend:8501"],  # Streamlit only
+                   "http://frontend:8501",
+                   frontend_url], 
+    allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Content-Type"],
+    allow_headers=["*"],
 )
 
 
@@ -167,9 +172,3 @@ def clear_session(session_id: str):
 
     delete_session(session_id)
     return {"status": "deleted", "session_id": session_id}
-
-
-# ── Run lokal ─────────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("api.main:app", host="0.0.0.0", port=8000, reload=True, workers=1)
