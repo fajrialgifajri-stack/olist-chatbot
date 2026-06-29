@@ -68,9 +68,21 @@ def send_message(user_input: str) -> str:
         r = requests.post(f"{API_URL}/chat", json=payload, timeout=60)
         r.raise_for_status()
         data = r.json()
+        
+        # Debug sementara - hapus setelah fix confirmed
+        print("DEBUG response keys:", list(data.keys()))
+        print("DEBUG response:", data)
+        
+        if "session_id" in data:
+            st.session_state.session_id = data["session_id"]
+            
         # Simpan session_id dari response pertama
         st.session_state.session_id = data["session_id"]
-        return data["answer"]
+        answer = (
+            data.get("answer") or
+            str(data)
+        )
+        return answer
     except requests.exceptions.Timeout:
         return "⚠️ Request timeout. Agent sedang memproses — coba lagi."
     except requests.exceptions.ConnectionError:
@@ -185,5 +197,7 @@ if user_input:
         with st.spinner("Agent sedang memproses..."):
             answer = send_message(user_input)
         st.markdown(answer)
-
+        
     st.session_state.messages.append({"role": "assistant", "content": answer})
+    
+    st.rerun()
