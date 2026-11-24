@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from create_schema import Base, Customer, Order, Payment, Product, Seller, OrderItems, Review
 
 
-engine = create_engine('sqlite:////data/sql/olist.db', echo=True)
+engine = create_engine('sqlite:////data/sql/olist.db', echo=False)
 Base.metadata.create_all(engine)
 data_path = "/data/final/olist_customer_dataset_final.csv"
 
@@ -15,7 +15,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 def seed_customers():
     try:
-        df = pd.read_csv(data_path)
+        df = pd.read_csv(("/data/final/olist_customer_dataset_final.csv"))
         df["customer_zip_code_prefix"] = df["customer_zip_code_prefix"]
         
         with SessionLocal() as session:
@@ -36,7 +36,7 @@ def seed_customers():
             
 def seed_seller():
     try:
-        df = pd.read_csv(data_path)
+        df = pd.read_csv(("/data/final/olist_sellers_dataset_final.csv"))
         
         with SessionLocal() as session:
             for _, row in df.iterrows():
@@ -56,7 +56,7 @@ def seed_seller():
 
 def seed_product():
     try:
-        df = pd.read_csv(data_path)
+        df = pd.read_csv(("/data/final/olist_product_dataset_final.csv"))
         
         with SessionLocal() as session:
             for _, row in df.iterrows():
@@ -82,7 +82,7 @@ def seed_product():
         
 def seed_order():
     try:
-        df = pd.read_csv(data_path)
+        df = pd.read_csv(("/data/final/olist_orders_dataset_final.csv"))
         
         kol_waktu = ["order_purchase_timestamp", "order_approved_at", "order_delivered_carrier_date", "order_delivered_customer_date", "order_estimated_delivery_date"]
         for i in kol_waktu:
@@ -113,7 +113,7 @@ def seed_order():
 
 def seed_payment():
     try:
-        df = pd.read_csv(data_path)
+        df = pd.read_csv(("/data/final/olist_order_payments_dataset_final.csv"))
         
         with SessionLocal() as session:
             for _, row in df.iterrows():
@@ -136,7 +136,7 @@ def seed_payment():
         
 def seed_order_item():
     try:
-        df = pd.read_csv(data_path)
+        df = pd.read_csv(("/data/final/olist_order_items_dataset_final.csv"))
         df["shipping_limit_date"] = pd.to_datetime(df["shipping_limit_date"], errors="coerce")
         
         with SessionLocal() as session:
@@ -164,7 +164,7 @@ def seed_order_item():
         
 def seed_review():
     try:
-        data_review = pd.read_csv(data_path)
+        data_review = pd.read_csv(("/data/final/olist_review_dataset_final.csv"))
         
         data_review2 = data_review[["review_id", "order_id", "review_score"]]
         data_review3 = data_review2.drop_duplicates(subset=["review_id"]).reset_index(drop=True)
@@ -179,7 +179,7 @@ def seed_review():
                 session.add(review)
                 
             session.commit()
-            print("Berhasil menambahkan daya review ke db")
+            print("Berhasil menambahkan data review ke db")
     
     except ValueError:
         print("Eror data salah")

@@ -42,3 +42,12 @@ test_uuid.py
 
 #uwanted file
 *.Identifier
+# Template env harus ikut ke-commit (pola .env* di atas akan menelannya)
+!.env.example
+
+# Log aplikasi dan log ingest (memuat URL cluster)
+logs/
+log/
+
+# File database lokal
+*.db

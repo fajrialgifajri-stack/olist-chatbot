@@ -6,11 +6,13 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.39-FF4B4B?logo=streamlit&logoColor=white)
 ![LangChain](https://img.shields.io/badge/LangChain-1.3.3-1C3C3C?logo=langchain&logoColor=white)
-![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991?logo=openai&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-412991?logo=openai&logoColor=white)
 ![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-DC244C?logo=qdrant&logoColor=white)
 ![Turso](https://img.shields.io/badge/Turso-Database-4FF8D2?logo=turso&logoColor=white)
 
 ---
+
+> This repository is a revived version of a team capstone built at Purwadhika AI Engineering ([original team repository](https://github.com/Purwadhika-AI-Engineering/Repo-Final-Project-Kelompok-3)). It runs on its own Turso, Qdrant, OpenAI and Langfuse accounts and adds an updated ingest script (`utils/qdrant/ingest.py`), a corrected SQL seed script, cleaned-up requirements, and Docker/compose fixes. See [Team](#team) for credits.
 
 ## 🚀 Overview
 
@@ -93,7 +95,7 @@ graph TD
 ## 📁 Project Structure
 
 ```
-project-root/
+olist-chatbot/
 ├── backend/                        # FastAPI backend service
 │   ├── api/
 │   │   └── main.py                 # FastAPI app, endpoints, rate limiter, CORS
@@ -102,43 +104,42 @@ project-root/
 │   │   │   └── orchestrator.py     # ReAct agent loop, session management, Langfuse tracing
 │   │   ├── checker/
 │   │   │   └── checker_output.py   # Query relevance validation & prompt injection detection
-│   │   ├── prompt/
-│   │   │   ├── guard_prompt.py     # System prompts for query checker & basic agent
-│   │   │   ├── hybrid_prompt.py    # Prompts for hybrid SQL+RAG search
-│   │   │   ├── orchestrator_prompt.py  # Orchestrator system prompt with tool routing rules
-│   │   │   ├── rag_prompt.py       # RAG semantic search & translation prompts
-│   │   │   └── sql_prompt.py       # Text-to-SQL prompt, DB schema, query examples
+│   │   ├── prompt/                 # System prompts (guard, hybrid, orchestrator, RAG, SQL)
 │   │   ├── tools/
-│   │   │   └── tools.py            # Tool definitions: search_products, query_database, hybrid_search
+│   │   │   └── tools.py            # Tools: search_products, query_database, hybrid_search
 │   │   └── config.py               # LLM instances, Qdrant client, SQLAlchemy engine
-│   ├── Dockerfile                  # Backend container image (Python 3.12-slim)
-│   ├── example.env                 # Example environment variable template
-│   └── requirements.txt            # Backend Python dependencies
-│
-├── data/
-│   ├── raw/                        # Original Olist dataset CSV files
-│   ├── process/                    # Intermediate cleaned data files
-│   └── final/                      # Processed datasets ready for DB ingestion
+│   ├── Dockerfile
+│   ├── .dockerignore               # Keeps .env and logs out of the image
+│   └── requirements.txt
 │
 ├── frontend/
 │   ├── streamlit_app/
 │   │   └── app.py                  # Streamlit chat UI with session management
-│   ├── Dockerfile                  # Frontend container image (Python 3.12-slim)
-│   └── requirements.txt            # Frontend Python dependencies
-│
-├── logs/                           # Application log files (auto-created at runtime)
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   └── requirements.txt
 │
 ├── utils/
 │   ├── create_sql/
 │   │   ├── create_schema.py        # SQLAlchemy ORM models for all 7 tables
-│   │   └── create_sql.py           # Seed script: loads CSV data into SQL database
+│   │   └── create_sql.py           # Seed script: loads CSV data into a local SQLite file
 │   ├── feature_engineering/
 │   │   ├── cleanup.py              # Unicode normalization & accent removal for location data
 │   │   └── feature_engineering.py  # Feature engineering: volume, weight categories, delivery status
-│   └── qdrant/
-│       └── create_qdrant_databse.py  # Qdrant vector DB collection creation & document indexing
+│   ├── qdrant/
+│   │   ├── ingest.py               # Batched, resumable ingest into Qdrant (use this one)
+│   │   ├── count_tokens.py         # Token count and cost estimate before ingesting
+│   │   └── create_qdrant_databse.py  # Legacy ingest script (superseded by ingest.py)
+│   └── requirements.txt            # Dependencies for the scripts in utils/
 │
-├── docker-compose.yml              # Multi-service orchestration (backend + frontend)
+├── data/                           # CSV files (raw, process, final), see data/README.md
+│   ├── raw/
+│   ├── process/
+│   ├── final/
+│   └── README.md
+│
+├── .env.example                    # Environment variable template (no values)
+├── docker-compose.yml              # Backend + frontend services
 ├── LICENSE                         # MIT License
 └── README.md                       # This file
 ```
@@ -147,116 +148,120 @@ project-root/
 
 ## ✅ Prerequisites
 
-Before setting up the project, ensure the following are installed:
-
-- **Python 3.12+**
-- **Docker** & **Docker Compose** (for containerized deployment)
+- **Python 3.12**: Python 3.14 fails to build `pydantic-core` and `libsql-experimental`; other versions are untested.
 - **Git**
+- **Docker** & **Docker Compose**: optional, only for the container setup.
+- **Turso CLI**: only needed to upload the SQLite database to Turso (see Database Setup).
 
 You will also need accounts and API keys for:
 
-- **OpenAI** — for LLM inference and embeddings
-- **Qdrant Cloud** — for the hosted vector database
-- **Turso** — for the hosted libSQL (SQLite) cloud database
-- **Langfuse** — for observability and tracing (optional but recommended)
+- **OpenAI**: LLM inference and embeddings
+- **Qdrant Cloud**: hosted vector database
+- **Turso**: hosted libSQL (SQLite) database
+- **Langfuse**: observability and tracing
 
 ---
 
 ## 🔐 Environment Variables
 
-The application requires the following environment variables. Create a `.env.backend` file in the `backend/` directory and a `.env.frontend` file in the `frontend/` directory based on the templates below.
+All variables live in **one file**: `backend/.env`, created from the template. Never commit it.
 
-### Backend (`backend/.env.backend`)
+```bash
+cp .env.example backend/.env     # then fill in the values
+ln -s backend/.env .env          # required for utils/qdrant/ingest.py, which reads the repo-root .env
+```
 
-| Variable               | Description                                         | Example                                  | Required |
-| ---------------------- | --------------------------------------------------- | ---------------------------------------- | -------- |
-| `OPENAI_API_KEY`       | OpenAI API key for GPT and embedding models         | `sk-proj-xxxxxxxxxxxx`                   | ✅       |
-| `QDRANT_URL`           | Qdrant Cloud cluster URL                            | `https://xxx.us-east4-0.gcp.cloud.qdrant.io:6333` | ✅       |
-| `QDRANT_API`           | Qdrant Cloud API key                                | `qdrant-api-key-here`                    | ✅       |
-| `QDRANT_COLLECTION`    | Qdrant collection name (defaults to `olist_data_3`) | `olist_data_3`                           | ❌       |
-| `TURSO_DATABASE_URL`   | Turso libSQL database URL                           | `libsql://your-db-name.turso.io`         | ✅       |
-| `TURSO_DATABASE_TOKEN` | Turso authentication token                          | `eyJhbGciOiJFZ...`                       | ✅       |
-| `LANGFUSE_SECRET_KEY`  | Langfuse secret key for tracing                     | `sk-lf-xxxxxxxxxxxx`                     | ✅       |
-| `LANGFUSE_PUBLIC_KEY`  | Langfuse public key for tracing                     | `pk-lf-xxxxxxxxxxxx`                     | ✅       |
-| `LANGFUSE_HOST`        | Langfuse host URL                                   | `https://cloud.langfuse.com`             | ✅       |
+| Variable               | Description                                                      | Required |
+| ---------------------- | ---------------------------------------------------------------- | -------- |
+| `OPENAI_API_KEY`       | OpenAI API key (chat models and embeddings)                      | ✅       |
+| `QDRANT_URL`           | Qdrant Cloud cluster URL                                         | ✅       |
+| `QDRANT_API`           | Qdrant Cloud API key (the variable is `QDRANT_API`, not `QDRANT_API_KEY`) | ✅ |
+| `QDRANT_COLLECTION`    | Collection name. Use a name that does not already exist in your cluster | ✅ |
+| `TURSO_DATABASE_URL`   | Turso database URL (`libsql://...`)                              | ✅       |
+| `TURSO_DATABASE_TOKEN` | Turso auth token. Prefer a read-only token for the app, since the SQL is generated by an LLM | ✅ |
+| `LANGFUSE_PUBLIC_KEY`  | Langfuse public key                                              | ✅       |
+| `LANGFUSE_SECRET_KEY`  | Langfuse secret key                                              | ✅       |
+| `LANGFUSE_HOST`        | Langfuse host (check whether your account is on the EU or US region) | ✅   |
+| `FRONTEND_URL`         | Optional. Used by the backend (see `backend/api/main.py`)        | ❌       |
 
-### Frontend (`frontend/.env.frontend`)
-
-| Variable   | Description                              | Example                  | Required |
-| ---------- | ---------------------------------------- | ------------------------ | -------- |
-| `API_URL`  | Backend API base URL                     | `http://backend:8000`    | ✅       |
+The frontend needs no env file locally: `API_URL` defaults to `http://localhost:8000`, and `docker-compose.yml` sets it to `http://backend:8000`.
 
 ---
 
 ## ⚙️ Installation & Setup
 
-### Option A: Docker (Recommended)
+> Set up the databases first (see **Database Setup** below). The chatbot needs the Turso database seeded and the Qdrant collection ingested.
+
+### Option A: Local (venv)
+
+**Backend**
 
 ```bash
-# Clone the repository
-git clone https://github.com/Purwadhika-AI-Engineering/Repo-Final-Project-Kelompok-3.git
-cd Repo-Final-Project-Kelompok-3
+git clone https://github.com/fajrialgifajri-stack/olist-chatbot.git
+cd olist-chatbot
+cp .env.example backend/.env     # fill in the values
 
-# Create environment files
-cp backend/example.env backend/.env.backend
-# Edit backend/.env.backend with your API keys and database credentials
-
-# Create frontend env file
-echo "API_URL=http://backend:8000" > frontend/.env.frontend
-
-# Build and run all services
-docker-compose up --build
-```
-
-Once running:
-- **Frontend (Streamlit)**: [http://localhost:8501](http://localhost:8501)
-- **Backend API docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-
-### Option B: Manual Setup
-
-#### Backend
-
-```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python3.12 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-
-# Set environment variables
-cp example.env .env.backend
-# Edit .env.backend with your values
-
-# Run the API server
 uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### Frontend
+Check [http://localhost:8000/health](http://localhost:8000/health) and [http://localhost:8000/docs](http://localhost:8000/docs).
+
+**Frontend** (in a second terminal)
 
 ```bash
-cd frontend/streamlit_app
-python -m venv venv
+cd olist-chatbot/frontend
+python3.12 -m venv venv
 source venv/bin/activate
-pip install -r ../requirements.txt
+pip install -r requirements.txt
 
-# Set the API URL
-export API_URL=http://localhost:8000
-
-# Run Streamlit
-streamlit run app.py
+cd streamlit_app
+streamlit run app.py             # optional: export API_URL=http://localhost:8000
 ```
+
+The UI opens at [http://localhost:8501](http://localhost:8501).
+
+### Option B: Docker
+
+```bash
+cp .env.example backend/.env     # fill in the values
+docker compose up --build
+```
+
+- Frontend: [http://localhost:8501](http://localhost:8501)
+- Backend API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+`docker-compose.yml` reads `backend/.env` directly and passes `API_URL=http://backend:8000` to the frontend.
+
+> Note: the compose file is syntax-validated, but a full image build has not been verified yet.
 
 ---
 
 ## 🗄️ Database Setup
 
+> The CSV files are included in this repository under `data/`. Create the `/data` symlink first, as described in [`data/README.md`](data/README.md). The scripts below read `/data/final/...`.
+
 ### SQL Database (Turso)
 
-The project uses **Turso** (libSQL cloud) as its SQL database. To set up the schema and seed data:
+The seed script builds a local SQLite file, which is then uploaded to Turso.
 
 ```bash
-cd utils/create_sql
-python create_schema.py   # Define ORM models and create table schema
-python create_sql.py       # Populate tables with processed Olist data
+pip install -r utils/requirements.txt
+mkdir -p data/sql
+python utils/create_sql/create_sql.py    # writes /data/sql/olist.db from /data/final/*.csv
+```
+
+The seed script is **not idempotent**: delete `/data/sql/olist.db` before seeding again.
+
+Upload it with the [Turso CLI](https://docs.turso.tech/cli/installation):
+
+```bash
+turso db create olist --from-file data/sql/olist.db --location <region>
+turso db show olist --url                  # value for TURSO_DATABASE_URL
+turso db tokens create olist --read-only   # value for TURSO_DATABASE_TOKEN
 ```
 
 **Database Tables:**
@@ -272,22 +277,29 @@ python create_sql.py       # Populate tables with processed Olist data
 
 ### Qdrant Vector Database
 
-The Qdrant collection stores product review embeddings for semantic search:
+The collection stores product review embeddings (`text-embedding-3-small`, 1536 dimensions) for semantic search.
 
 ```bash
-cd utils/qdrant
-python create_qdrant_databse.py
+python utils/qdrant/count_tokens.py      # optional: token count and cost estimate
+
+# 1. Small test run into a throwaway collection (delete it from the Qdrant dashboard afterwards)
+python utils/qdrant/ingest.py --collection olist_test --limit 100 --grpc
+
+# 2. Full run, then set QDRANT_COLLECTION to the same name in backend/.env
+python utils/qdrant/ingest.py --collection olist_data_3 --full --grpc
 ```
 
-This script:
-1. Merges review, order item, and product data
-2. Creates `Document` objects with review text as content and product category/score as metadata
-3. Generates embeddings using OpenAI `text-embedding-3-small`
-4. Uploads documents to the specified Qdrant collection
+- Source: reviews merged with order items and products, keeping reviews that have text (39,839 documents). Run `python utils/qdrant/ingest.py --help` for all options.
+- Ingestion is batched and safe to re-run: document IDs are derived from `review_id`, existing documents are skipped, and the script refuses to write into a collection that belongs to another project.
+- Cost: about 1.03M tokens, roughly US$0.02 per full run at `text-embedding-3-small` pricing (check current pricing). It took about 7 minutes in testing.
+
+> **Qdrant Cloud Free clusters are suspended after one week without use and deleted after four weeks of inactivity** ([docs](https://qdrant.tech/documentation/cloud/create-cluster/)). If the cluster is gone, create a new one and run the full ingest again.
 
 ---
 
 ## 🔄 Data Pipeline
+
+> Only `data/final/` is needed to rebuild the databases. `data/raw/` and `data/process/` document how those files were produced. The CSV files are committed to this repository (see [`data/README.md`](data/README.md)).
 
 The data processing pipeline transforms raw Olist CSV files into database-ready datasets:
 
@@ -468,23 +480,13 @@ sequenceDiagram
 
 ## 🧪 Development
 
-### Running Tests
+### Tests
 
-```bash
-# Navigate to the backend directory
-cd backend
-
-# Run tests (if pytest is configured)
-pytest
-```
+Automated tests are not included in this repository yet.
 
 ### Logs
 
-Application logs are written to the `logs/` directory (created automatically at runtime). The backend uses Python's `logging` module with `INFO` level and outputs to both `StreamHandler` (console) and log files.
-
-```
-logs/   ← Application logs are written here at runtime
-```
+The backend logs with Python's `logging` module (INFO level, console and file). Log files are written to a `logs/` folder relative to where the backend is started (by default `backend/logs/`), which is git-ignored. The Qdrant ingest script logs to `utils/qdrant/log/` (also git-ignored; the log may contain your cluster URL).
 
 ---
 
@@ -494,10 +496,10 @@ The `docker-compose.yml` defines two services connected via a bridge network:
 
 | Service      | Image            | Port Mapping   | Description                                | Health Check              |
 | ------------ | ---------------- | -------------- | ------------------------------------------ | ------------------------- |
-| `backend`    | `backend:1.0`    | `8000:8000`    | FastAPI API server (Uvicorn)               | `curl http://localhost:8000/health` (10s interval) |
-| `frontend`   | `frontend:1.0`   | `8501:8501`    | Streamlit chat interface                   | —                         |
+| `backend`    | `backend:1.0`    | `8000:8000`    | FastAPI API server (Uvicorn)               | Python `urllib` request to `/health` (10s interval) |
+| `frontend`   | `frontend:1.0`   | `8501:8501`    | Streamlit chat interface                   | none                      |
 
-**Network:** Both services share the `app-network` (bridge driver) for internal communication. The frontend connects to the backend via `http://backend:8000`.
+**Network:** Both services share the `app-network` (bridge driver). The frontend reaches the backend at `http://backend:8000` (set through `API_URL` in the compose file). The backend reads its secrets from `backend/.env`, and each service's `.dockerignore` keeps `.env` out of the image.
 
 ---
 
@@ -505,14 +507,25 @@ The `docker-compose.yml` defines two services connected via a bridge network:
 
 | Issue                             | Solution                                                                                              |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Qdrant connection errors**      | Verify `QDRANT_URL` and `QDRANT_API` in `.env.backend`. Check that the Qdrant Cloud cluster is running. |
-| **SQL database not found**        | Verify `TURSO_DATABASE_URL` and `TURSO_DATABASE_TOKEN`. Ensure the Turso database has been seeded.     |
-| **Missing environment variables** | Ensure both `.env.backend` and `.env.frontend` files exist and contain all required variables.          |
+| **Qdrant connection errors**      | Verify `QDRANT_URL` and `QDRANT_API` in `backend/.env`. Check that the cluster is running and not suspended. |
+| **Qdrant cluster suspended or deleted** | Free clusters are suspended after a week of inactivity and deleted after four weeks. Reactivate it in the Qdrant Cloud console, or create a new cluster and re-run the ingest. |
+| **`no such table: orders`**       | The Turso database is empty or the URL points to another database. Seed and upload it (see Database Setup) and check `TURSO_DATABASE_URL`. |
+| **Write errors on Turso**         | The app token is read-only on purpose. Use a full-access token only when seeding.                      |
+| **Missing environment variables** | Ensure `backend/.env` exists and contains every variable from `.env.example` (the key is `QDRANT_API`, not `QDRANT_API_KEY`). |
+| **`pip install` fails to build `pydantic-core` or `libsql-experimental`** | Use Python 3.12.                                                       |
 | **Port conflicts**                | Change port mappings in `docker-compose.yml` if ports 8000 or 8501 are already in use.                 |
 | **Rate limit exceeded (429)**     | Wait 60 seconds. The limit is 20 requests per minute per session.                                      |
-| **API Disconnected in Streamlit** | Click "🔄 Check API Status" in the sidebar. Ensure the backend container is running and healthy.        |
+| **API Disconnected in Streamlit** | Click "🔄 Check API Status" in the sidebar. Ensure the backend is running and healthy.                  |
 | **Request timeout**               | The agent may take time to process complex queries. The default timeout is 60 seconds.                  |
 | **OpenAI API errors**             | Verify `OPENAI_API_KEY` is valid and has sufficient quota.                                             |
+
+---
+
+## ⚠️ Known Limitations
+
+- **The data pipeline decisions have not been re-audited.** Observed in the data: 865 `order_items` rows have no matching `product` row, so JOINs to `product` skip them; 814 `review_id` values appear more than once in the source CSV and are de-duplicated when seeding and ingesting (one review is kept per id); the `product` table has 32,557 rows versus about 32,951 in the original Kaggle dataset.
+- **The SQL token is read-only**, so the chatbot cannot modify the database. Re-seeding needs a full-access token.
+- **Free-tier services can go offline** (see the Qdrant note above).
 
 ---
 
@@ -543,5 +556,7 @@ Please ensure your code follows the existing project structure and includes appr
 ## 📄 License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+The CSV files in `data/` are **not** covered by the MIT license. They come from the *Brazilian E-Commerce Public Dataset by Olist* (Kaggle: `olistbr/brazilian-ecommerce`) and remain subject to the dataset's own license. See [`data/README.md`](data/README.md).
 
 Copyright (c) 2026 Purwadhika AI Engineering

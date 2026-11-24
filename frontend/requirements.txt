@@ -1,5 +1,6 @@
+# Streamlit UI
+streamlit==1.39.0
+requests>=2.27,<3
+
 # Utils
 python-dotenv==1.0.1
-
-# Streamlit
-streamlit==1.39.0

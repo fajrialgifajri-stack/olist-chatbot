@@ -1,0 +1,19 @@
+# Data loading, token counting, embeddings
+pandas==3.1.1
+numpy==2.5.5
+tiktoken==0.14.0
+openai==2.26.0
+qdrant-client==1.20.0
+
+# SQL (Turso / libSQL), dipakai utils/create_sql
+SQLAlchemy==2.1.9
+sqlalchemy-libsql==0.2.0
+libsql-client==0.3.1
+
+# Utils
+python-dotenv==1.0.1
+
+# Hanya untuk utils/qdrant/create_qdrant_databse.py (deprecated, diganti ingest.py)
+# langchain-core==1.6.13
+# langchain-openai==1.3.2
+# langchain-qdrant==1.1.0
