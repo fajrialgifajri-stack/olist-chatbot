@@ -14,6 +14,7 @@ RULES
 - Use DISTINCT to avoid duplicate categories
 - TRANSLATE user's category input into ENGLISH if user input in other languages other than english
 - Use LIMIT 10
+- If the question asks for best-selling, most sold, or top categories, use GROUP BY p.product_category_name ORDER BY COUNT(*) DESC instead of DISTINCT (still return only product_category_name)
 - IF USER INPUT FOR CATEGORY OR ITEM HAS SPACE or & USE ( _ ) ONLY FOR COLUMN p.product_category_name, other column such as state use space
 - For text comparisons: use LIKE with % wildcard and LOWER() for case-insensitive
 - For date filtering: use strftime('%Y', order_purchase_timestamp) NOT YEAR()

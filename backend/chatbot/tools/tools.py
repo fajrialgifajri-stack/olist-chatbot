@@ -58,7 +58,7 @@ def search_products(query: str) -> str:
     try:
         logging.info("Run RAG clarified")
         
-        clarified = llm_call(model=llm_strict, query=query, prompt=RAG_PROMPT)
+        clarified = query
         
         print(f"[DEBUG] clarified query: {clarified}")
         
@@ -99,7 +99,7 @@ def search_products(query: str) -> str:
             )
             
         texts = "\n".join(output_lines)
-        translate_review = _translate_output(text=texts, prompt=TRANSLATE_PROMPT)
+        translate_review = texts
         logging.info("Successfully run RAG tools")
         return translate_review
 
@@ -188,8 +188,8 @@ def hybrid_search(question: str) -> str:
 
         logging.info("Start run RAG for hybrid tools")
         
-        rag_prompt = HYBRID_RAG_PROMPT.format(categories)
-        clarified = llm_call(model=llm_strict, query=question, prompt=rag_prompt)
+        rag_prompt = None
+        clarified = question
         # Step 3: RAG search dengan atau tanpa metadata filter
         embed_response = openai_client.embeddings.create(
             input=[clarified],
@@ -265,7 +265,7 @@ def hybrid_search(question: str) -> str:
             )
             
         texts = "\n".join(output_lines)
-        translate = _translate_output(text=texts, prompt=TRANSLATE_PROMPT)
+        translate = texts
         logging.info("RAG for hybird tools successfully run")
         return translate
 
